@@ -15,9 +15,11 @@
 // ******
 #include "motors.h"
 #include "capteur_ir.h"
-//#include "audio_processing.c"
+#include "audio_processing.h"
 #include "conducteur.h"
 
+
+#define MAX_NB_INSTRUCTION	50
 #define PI                  3.1415926536f
 #define WHEEL_DISTANCE      5.35f    //cm
 #define PERIMETER_EPUCK     (PI * WHEEL_DISTANCE)
@@ -27,7 +29,7 @@
 
 static unsigned int etat;
 uint8_t motor_already_ordered ;
-static uint8_t instruction_left_right =0;  // 0 pour nothing , 1 pour left , 2 pour right
+//static uint8_t instruction_left_right =0;  // 0 pour nothing , 1 pour left , 2 pour right
 // **************   INTERNAL FUNCTIONS ******************
 // this function converts distance or speed from cm or cm/s to steps or steps/s
 
@@ -118,6 +120,9 @@ static THD_FUNCTION(conducteur_thd,arg)
 	(void)arg;
 	chRegSetThreadName(__FUNCTION__);
 	//systime_t time;
+	int32_t instruction_tab[MAX_NB_INSTRUCTION]={0};
+	int num_instruction=-1;
+	static int wayback=0;
 	while(1)
 	{
 		//time = chVTGetSystemTime();
@@ -175,6 +180,7 @@ static THD_FUNCTION(conducteur_thd,arg)
 				move_forward();
 			}
 			*/
+
 			if(get_etat_marche()) //l'espace est libre
 			{
 				if(!motor_already_ordered)
@@ -198,30 +204,67 @@ static THD_FUNCTION(conducteur_thd,arg)
 			//motor_stop();
 			//set_etat_micro(2);
 			//chThdSleepMilliseconds(100);
-			//break;
-		case 2: // le moteur a commencé à avancer c'est au capteur de detecter l'obstacle
-			if(get_etat_marche())
-			{
-				chThdSleepMilliseconds(100);
-				break;
+		case 2:// le moteur a commencé à avancer c'est au capteur de detecter l'obstacle
 
-			}
-			else
-			{
-				motor_stop();
-				delay(100000);
-				etat=3;
-				set_etat_micro(2);
-				chThdSleepMilliseconds(100);
-				break;
+			if(!wayback){
 
+					if(get_etat_marche()==1 )
+					{
+						chThdSleepMilliseconds(100);
+						break;
+
+					}
+					else
+					{
+						num_instruction++;
+						instruction_tab[num_instruction]=right_motor_get_pos();
+						motor_stop();
+						delay(100000);
+						etat=3;
+						set_etat_micro(2);
+						chThdSleepMilliseconds(100);
+						break;
+
+					}
 			}
+			else{
+				if(num_instruction != -1){
+							if(instruction_tab[num_instruction]==-2){
+								turn_right();
+								num_instruction--;
+								etat=2;
+
+								break;
+							}
+							else if(instruction_tab[num_instruction]==-3){
+								turn_left();
+								num_instruction--;
+								etat=2;
+
+								break;
+							}
+							else{
+								move_forwd_steps(instruction_tab[num_instruction]);
+								num_instruction--;
+								etat=2;
+
+								break;
+							}
+						}else{
+							motor_stop();
+							break;
+						}
+			}
+
+
 		case 3: //le moteur s'est arreté devant un obstacle <--> c'est au microphone de donner l'ordre
 			if(get_instruction_micro()==2)
 			{
 				if(!motor_already_ordered)
 				{
 					turn_left();
+					num_instruction++;
+					instruction_tab[num_instruction]=-2;
 					move_forward();
 
 					etat=2;
@@ -236,6 +279,8 @@ static THD_FUNCTION(conducteur_thd,arg)
 				if(!motor_already_ordered)
 				{
 					turn_right();
+					num_instruction++;
+					instruction_tab[num_instruction]=-3;
 					move_forward();
 					etat=2;
 					set_etat_micro(1);
@@ -243,6 +288,23 @@ static THD_FUNCTION(conducteur_thd,arg)
 					break;
 				}
 			}
+			else if(get_instruction_micro()==11)
+			{
+				if(!motor_already_ordered)
+				{
+
+					turn_right();
+					turn_right();
+					motor_stop();
+					etat=2;
+					set_etat_micro(1);
+					wayback=1;
+					chThdSleepMilliseconds(100);
+					break;
+				}
+			}
+
+
 			chThdSleepMilliseconds(100);
 			break;
 		}

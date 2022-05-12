@@ -44,7 +44,7 @@ static float micBack_output[FFT_SIZE];
 #define FREQ_FORWARD	16	//250Hz
 #define FREQ_LEFT		26	//406Hz
 #define FREQ_RIGHT		19	//300HZ
-#define FREQ_BACKWARD	26	//406Hz
+#define FREQ_BACK		23	//359Hz
 #define MAX_FREQ		30	//we don't analyze after this index to not use resources for nothing
 
 #define FREQ_FORWARD_L		(FREQ_FORWARD-1)
@@ -53,8 +53,8 @@ static float micBack_output[FFT_SIZE];
 #define FREQ_LEFT_H			(FREQ_LEFT+1)
 #define FREQ_RIGHT_L		(FREQ_RIGHT-1)
 #define FREQ_RIGHT_H		(FREQ_RIGHT+1)
-#define FREQ_BACKWARD_L		(FREQ_BACKWARD-1)
-#define FREQ_BACKWARD_H		(FREQ_BACKWARD+1)
+#define FREQ_BACK_L		(FREQ_BACK-1)
+#define FREQ_BACK_H		(FREQ_BACK+1)
 
 // Other parameters
 static unsigned int etat_cours =4 ; // un etat qui n'existe pas mais
@@ -87,7 +87,9 @@ void sound_remote(float* data){
 		}
 		else
 		{
-			instruction_to_do= 0; //nothing
+			instruction_to_do= 0;
+
+			//nothing
 		}
 		case 1:// on marche
 			instruction_to_do= 0;
@@ -105,6 +107,13 @@ void sound_remote(float* data){
 				new_value_is_updated=1;
 				break;
 
+			}
+
+			else if(max_norm_index >= FREQ_BACK_L && max_norm_index <= FREQ_BACK_H)
+			{
+				instruction_to_do=11;
+				new_value_is_updated=1;
+				break;
 			}
 
 
@@ -329,7 +338,7 @@ unsigned int get_instruction_micro(void)
 {
 	return instruction_to_do;
 }
-initialiser_audio_proc(void)
+void initialiser_audio_proc(void)
 {
 	instruction_to_do= 0 ;
 	chThdCreateStatic(audio_processing_thd_wa,sizeof(audio_processing_thd_wa),NORMALPRIO,audio_processing_thd,NULL);
