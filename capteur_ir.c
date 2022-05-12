@@ -19,6 +19,7 @@ static unsigned int threshold_val =250 ; // this value can be changed depended o
 //static unsigned int etat_marche =0;
 static unsigned int etat_marche =2; // juste au début
 static unsigned int etat_do = 0;
+static int testester ;
 
 messagebus_t bus;
 MUTEX_DECL(bus_lock);
