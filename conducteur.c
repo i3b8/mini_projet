@@ -19,7 +19,7 @@
 #include "conducteur.h"
 
 #define PI                  3.1415926536f
-#define WHEEL_DISTANCE      5.35f    //cm
+#define WHEEL_DISTANCE      5.36f    //cm
 #define PERIMETER_EPUCK     (PI * WHEEL_DISTANCE)
 #define WHEEL_PERIMETER     13   //cm
 #define NSTEP_ONE_TURN      1000
