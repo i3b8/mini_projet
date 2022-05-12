@@ -30,6 +30,7 @@ uint8_t motor_already_ordered ;
 static uint8_t instruction_left_right =0;  // 0 pour nothing , 1 pour left , 2 pour right
 // **************   INTERNAL FUNCTIONS ******************
 // this function converts distance or speed from cm or cm/s to steps or steps/s
+static int variable_pour_tester ;
 
 int convert_cm_to_steps(float cm)
 {
