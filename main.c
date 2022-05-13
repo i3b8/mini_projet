@@ -21,22 +21,10 @@
 #include "fft.h"
 #include "audio_processing.h"
 
-//#include <audio_processing.h>
-//#include <fft.h>
-//#include <communications.h>
-//#include <arm_math.h>
-//#include <conducteur.h>
-
-//#include "capteur_ir.h"
-
 //*** Define Part *** //
 #define SEND_FROM_MIC
 
 //*** End Define Part *** ///
-//messagebus_t bus;
-//MUTEX_DECL(bus_lock);
-//CONDVAR_DECL(bus_condvar);
-
 
 void SendUint8ToComputer(uint8_t* data, uint16_t size) 
 {
@@ -67,7 +55,9 @@ int main(void)
     mpu_init();
     //*** Inits Inter Process Communication bus ***
     //messagebus_init(&bus, &bus_lock, &bus_condvar);
+    initialiser_message_for_prox_ir();
     initialiser_capteur_ir();
+
 
     motors_init();
 
