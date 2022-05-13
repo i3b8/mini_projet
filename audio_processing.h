@@ -31,6 +31,7 @@ void wait_send_to_computer(void);
 float* get_audio_buffer_ptr(BUFFER_NAME_t name);
 void set_etat_micro(unsigned int valeur);
 unsigned int get_instruction_micro(void);
+void set_instruction_to_do(unsigned int instruction);
 void initialiser_audio_proc(void);
 
 #endif /* AUDIO_PROCESSING_H */

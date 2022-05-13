@@ -290,3 +290,7 @@ void initialiser_audio_proc(void)
 	new_value_is_updated=0;
 	chThdCreateStatic(audio_processing_thd_wa,sizeof(audio_processing_thd_wa),NORMALPRIO,audio_processing_thd,NULL);
 }
+void set_instruction_to_do(unsigned int instruction)
+{
+	instruction_to_do=instruction;
+}
