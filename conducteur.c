@@ -187,6 +187,7 @@ static THD_FUNCTION(conducteur_thd,arg)
 				{
 					move_forward();
 					set_etat_micro(1);
+					set_instruction_to_do(0);
 					etat=2;
 					chThdSleepMilliseconds(100);
 					break;
@@ -197,7 +198,8 @@ static THD_FUNCTION(conducteur_thd,arg)
 			{
 				etat=3;
 				set_etat_micro(2);
-				delay(100000);
+				set_instruction_to_do(0);
+				delay(1000000);
 				chThdSleepMilliseconds(100);
 				break;
 			}
@@ -219,8 +221,9 @@ static THD_FUNCTION(conducteur_thd,arg)
 						num_instruction++;
 						instruction_tab[num_instruction]=right_motor_get_pos();
 						motor_stop();
-						delay(100000);
+						delay(1000000);
 						etat=3;
+						set_instruction_to_do(0);
 						set_etat_micro(2);
 						chThdSleepMilliseconds(100);
 						break;
@@ -269,6 +272,7 @@ static THD_FUNCTION(conducteur_thd,arg)
 
 					etat=2;
 					set_etat_micro(1);
+					set_instruction_to_do(0);
 					chThdSleepMilliseconds(100);
 					break;
 
@@ -284,6 +288,7 @@ static THD_FUNCTION(conducteur_thd,arg)
 					move_forward();
 					etat=2;
 					set_etat_micro(1);
+					set_instruction_to_do(0);
 					chThdSleepMilliseconds(100);
 					break;
 				}
@@ -317,6 +322,7 @@ void initialiser_conducteur(void)
 	etat=0 ;
 	set_etat_marche(0);
 	set_etat_micro(0);
+	set_instruction_to_do(0);
 	motor_already_ordered=0;
 	chThdCreateStatic(conducteur_thd_wa,sizeof(conducteur_thd_wa),NORMALPRIO,conducteur_thd,NULL);
 }
