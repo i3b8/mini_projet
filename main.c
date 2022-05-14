@@ -33,19 +33,6 @@ void SendUint8ToComputer(uint8_t* data, uint16_t size)
 	chSequentialStreamWrite((BaseSequentialStream *)&SD3, (uint8_t*)data, size);
 }
 
-static void serial_start(void)
-{
-	static SerialConfig ser_cfg = {
-	    115200,
-	    0,
-	    0,
-	    0,
-	};
-
-	sdStart(&SD3, &ser_cfg); // UART3.
-}
-
-
 int main(void)
 {
 
@@ -55,26 +42,20 @@ int main(void)
     mpu_init();
     //*** Inits Inter Process Communication bus ***
     initialiser_message_for_prox_ir();
-    initialiser_capteur_ir();
     motors_init();
-    initialiser_conducteur();
-
-    //*** Init Peripherials ***
     proximity_start();
-    mic_start(&processAudioData);
-    initialiser_audio_proc();
-
-    //***End Init Other Parameters***
-    //***Motor configuration to move forward with speed of 6.5cm/s ***
-    //*** End Motor Configuration ***
-    //chThdSleepMilliseconds(4000);
-    //*** IR Auto Calibration***
     calibrate_ir();
-    //*** End IR Auto Calibration***
+    mic_start(&processAudioData);
+    //Initialisation Threads //
+    initialiser_capteur_ir();
+    initialiser_audio_proc();
+    initialiser_conducteur();
+    //*** End Init Threads ***
+
+
     while(1)
     {
     	chThdSleepMilliseconds(500);
-
     }
 
 }
