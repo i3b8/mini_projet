@@ -15,7 +15,22 @@ typedef enum {
 	RIGHT_OUTPUT,
 	FRONT_OUTPUT,
 	BACK_OUTPUT
+
 } BUFFER_NAME_t;
+enum state_micro
+{
+	INITIAL=0,
+	MOVING=1,
+	STOPPED=2
+};
+enum state_instruction
+{
+	NO_INSTRUCTION=0,
+	START_INSTRUCTION=1,
+	TURN_LEFT_INSTRUCTION=2,
+	TURN_RIGHT_INSTRUCTION=3,
+	COME_BACK_INSTRUCTION=4
+};
 
 
 void processAudioData(int16_t *data, uint16_t num_samples);
@@ -31,6 +46,7 @@ void wait_send_to_computer(void);
 float* get_audio_buffer_ptr(BUFFER_NAME_t name);
 void set_etat_micro(unsigned int valeur);
 unsigned int get_instruction_micro(void);
+void set_instruction_to_do(unsigned int instruction);
 void initialiser_audio_proc(void);
 
 #endif /* AUDIO_PROCESSING_H */

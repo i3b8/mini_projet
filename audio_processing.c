@@ -9,20 +9,12 @@
 
 #include "audio/microphone.h"
 #include <main.h>
-//#include "motors.h"
 #include "usbcfg.h"
 #include "communication.h"
 #include <arm_math.h>
 #include "conducteur.h"
 #include "fft.h"
-//#include "capteur_ir.h"
 #include "audio_processing.h"
-
-//#include <communications.h>    // probablement inutile le fichier communications
-
-
-
-
 
 //semaphore
 static BSEMAPHORE_DECL(sendToComputer_sem, TRUE);
@@ -44,7 +36,7 @@ static float micBack_output[FFT_SIZE];
 #define FREQ_FORWARD	16	//250Hz
 #define FREQ_LEFT		26	//406Hz
 #define FREQ_RIGHT		19	//300HZ
-#define FREQ_BACKWARD	26	//406Hz
+#define FREQ_BACK		23	//359Hz
 #define MAX_FREQ		30	//we don't analyze after this index to not use resources for nothing
 
 #define FREQ_FORWARD_L		(FREQ_FORWARD-1)
@@ -53,13 +45,14 @@ static float micBack_output[FFT_SIZE];
 #define FREQ_LEFT_H			(FREQ_LEFT+1)
 #define FREQ_RIGHT_L		(FREQ_RIGHT-1)
 #define FREQ_RIGHT_H		(FREQ_RIGHT+1)
-#define FREQ_BACKWARD_L		(FREQ_BACKWARD-1)
-#define FREQ_BACKWARD_H		(FREQ_BACKWARD+1)
+#define FREQ_BACK_L		(FREQ_BACK-1)
+#define FREQ_BACK_H		(FREQ_BACK+1)
 
 // Other parameters
-static unsigned int etat_cours =4 ; // un etat qui n'existe pas mais
-static unsigned int instruction_to_do= 0 ;
-static uint8_t new_value_is_updated=0;
+static  int etat_cours ; // En fonction de l'état_en cours {initial , marche, arrêt} on
+//vérifie si un signal sonore a été detecté
+static  int instruction_to_do; // {1 : start ; 2: turn left  ; 3:Right ; 4:Come_Back }
+static uint8_t new_value_is_updated; // {we detected a new sonore signal }
 
 /*
 *	Simple function used to detect the highest value in a buffer
@@ -68,7 +61,6 @@ static uint8_t new_value_is_updated=0;
 void sound_remote(float* data){
 	float max_norm = MIN_VALUE_THRESHOLD;
 	int16_t max_norm_index = -1; 
-
 	//search for the highest peak
 	for(uint16_t i = MIN_FREQ ; i <= MAX_FREQ ; i++){
 		if(data[i] > max_norm){
@@ -78,80 +70,47 @@ void sound_remote(float* data){
 	}
 	switch(etat_cours)
 	{
-		case 0:// on est à l'etat initial
+		case INITIAL: //Initial Situation --> Wait for the Start Signal : FREQ_FORWARD
 		if(max_norm_index >= FREQ_FORWARD_L && max_norm_index <= FREQ_FORWARD_H )
 		{
-			instruction_to_do= 1; // vous pouvez commencer
+			instruction_to_do= START_INSTRUCTION;
 			new_value_is_updated=1;
 			break;
 		}
 		else
 		{
-			instruction_to_do= 0; //nothing
-		}
-		case 1:// on marche
-			instruction_to_do= 0;
+			instruction_to_do= NO_INSTRUCTION;
 			break;
-		case 2: // on s'est arrete
+		}
+		case MOVING: //Moving Situation : No signal need to be detected
+			instruction_to_do= NO_INSTRUCTION;
+			break;
+		case STOPPED: // Stop Situation : Need to detect a specific signal (Left-Right or Come_back)
 			if(max_norm_index >= FREQ_LEFT_L && max_norm_index <= FREQ_LEFT_H)
 			{
-				instruction_to_do=2; // turn left
+				instruction_to_do=TURN_LEFT_INSTRUCTION;
 				new_value_is_updated=1;
 				break;
 			}
 			else if(max_norm_index >= FREQ_RIGHT_L && max_norm_index <= FREQ_RIGHT_H)
 			{
-				instruction_to_do=3; //turn_right
+				instruction_to_do=TURN_RIGHT_INSTRUCTION; //turn_right
 				new_value_is_updated=1;
 				break;
 
 			}
-
-
-
-
-
+			else if(max_norm_index >= FREQ_BACK_L && max_norm_index <= FREQ_BACK_H)
+			{
+				instruction_to_do=COME_BACK_INSTRUCTION;
+				new_value_is_updated=1;
+				break;
+			}
+			else
+			{
+				instruction_to_do=NO_INSTRUCTION;
+				break;
+			}
 	}
-	//go forward
-	//if(max_norm_index >= FREQ_FORWARD_L && max_norm_index <= FREQ_FORWARD_H){
-	//	left_motor_set_speed(600);
-	//	right_motor_set_speed(600);
-	//}
-	//turn left
-	/*
-	if(max_norm_index >= FREQ_LEFT_L && max_norm_index <= FREQ_LEFT_H){
-		if(get_motor_stopped()){
-			turn_left();
-			set_motor_stopped(0);
-			chThdSleepMilliseconds(500);
-			move_forward();
-		}
-	}
-	*/
-	//turn right
-	/*
-	else if(max_norm_index >= FREQ_RIGHT_L && max_norm_index <= FREQ_RIGHT_H){
-		if(get_motor_stopped()){
-					turn_right();
-
-					set_motor_stopped(0);
-					chThdSleepMilliseconds(500);
-					move_forward();
-				}
-	}
-	*/
-	//go backward
-	//else if(max_norm_index >= FREQ_BACKWARD_L && max_norm_index <= FREQ_BACKWARD_H){
-	////	if(get_motor_stopped()){
-	//				turn_left();
-	//				set_motor_stopped(0);
-				//}
-	//}
-	//else{
-		//left_motor_set_speed(0);
-		//right_motor_set_speed(0);
-	//}
-	
 }
 
 /*
@@ -281,45 +240,37 @@ static THD_FUNCTION(audio_processing_thd,arg)
 	{
 		switch(etat_cours)
 		{
-		case 0:
-			if(new_value_is_updated)
+		case INITIAL: // Initial Situation
+			if(new_value_is_updated) // We detected the Start Signal
 			{
 				new_value_is_updated=0;
-				chThdSleepMilliseconds(100);
+				chThdSleepMilliseconds(15);
 				break;
-
 			}
 			else
 			{
 				chThdSleepMilliseconds(15);
 				break;
 			}
-
+		case MOVING:  //Moving Situation <--> Nothing to do
+			instruction_to_do=NO_INSTRUCTION; // ******
+			chThdSleepMilliseconds(15);
 			break;
-		case 1: // en état de marche
-			instruction_to_do=0;
-			chThdSleepMilliseconds(100);
-			break;
-		case 2: // etat ou on s'est arrêté
+		case STOPPED: // Stop Situation --> What Instruction to to
 			if(new_value_is_updated)
 			{
 				new_value_is_updated=0;
-				chThdSleepMilliseconds(100);
-				break;
-
-			}
-			else
-			{
-				instruction_to_do=0;
 				chThdSleepMilliseconds(15);
 				break;
 			}
-
-
-
+			else
+			{
+				instruction_to_do=NO_INSTRUCTION;
+				chThdSleepMilliseconds(15);
+				break;
+			}
 		}
 	}
-
 }
 void set_etat_micro(unsigned int valeur)
 {
@@ -329,8 +280,14 @@ unsigned int get_instruction_micro(void)
 {
 	return instruction_to_do;
 }
-initialiser_audio_proc(void)
+void initialiser_audio_proc(void)
 {
-	instruction_to_do= 0 ;
+	instruction_to_do= NO_INSTRUCTION ;
+	new_value_is_updated=0;
 	chThdCreateStatic(audio_processing_thd_wa,sizeof(audio_processing_thd_wa),NORMALPRIO,audio_processing_thd,NULL);
+}
+void set_instruction_to_do(unsigned int instruction)
+{
+	instruction_to_do=instruction;
+
 }

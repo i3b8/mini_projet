@@ -1,33 +1,28 @@
-// Pour la partie des threads ///
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-
-
 #include <math.h>
-
 #include "ch.h"
 #include "hal.h"
-
-//aussi rajoutée
 #include <main.h>
-// ******
+
 #include "motors.h"
 #include "capteur_ir.h"
-//#include "audio_processing.c"
+#include "audio_processing.h"
 #include "conducteur.h"
 
+
+#define MAX_NB_INSTRUCTION	50
 #define PI                  3.1415926536f
 #define WHEEL_DISTANCE      5.36f    //cm
 #define PERIMETER_EPUCK     (PI * WHEEL_DISTANCE)
-#define WHEEL_PERIMETER     13   //cm
+#define WHEEL_PERIMETER     12.85f   //cm
 #define NSTEP_ONE_TURN      1000
-#define default_speed_m		6.5 // cm/s
+#define DEFAULT_SPEED_M		6.5 // cm/s
 
 static unsigned int etat;
-uint8_t motor_already_ordered ;
-static uint8_t instruction_left_right =0;  // 0 pour nothing , 1 pour left , 2 pour right
 // **************   INTERNAL FUNCTIONS ******************
 // this function converts distance or speed from cm or cm/s to steps or steps/s
 
@@ -35,80 +30,62 @@ int convert_cm_to_steps(float cm)
 {
 	return cm* (NSTEP_ONE_TURN/WHEEL_PERIMETER ) ;
 }
-void delay(unsigned int n)
-{
-	while (n--)
-	{
-		__asm__ volatile ("nop");
-	}
-}
-
 // ************ 	END INTERNAL Functions ***************
 
 void turn_left(void)
 {
-	motor_already_ordered=1;
 	left_motor_set_pos(0);
 	right_motor_set_pos(0);
-	left_motor_set_speed(-convert_cm_to_steps(default_speed_m));
-	right_motor_set_speed(+convert_cm_to_steps(default_speed_m));
+	left_motor_set_speed(-convert_cm_to_steps(DEFAULT_SPEED_M));
+	right_motor_set_speed(+convert_cm_to_steps(DEFAULT_SPEED_M));
 	while(left_motor_get_pos()>convert_cm_to_steps(-PERIMETER_EPUCK/4));
 	left_motor_set_speed(0) ;
 	right_motor_set_speed(0);
 	left_motor_set_pos(0);
 	right_motor_set_pos(0);
-	motor_already_ordered=0;
 
 }
 void turn_right(void)
 
 {
-	motor_already_ordered=1;
 	left_motor_set_pos(0);
 	right_motor_set_pos(0);
-	left_motor_set_speed(convert_cm_to_steps(default_speed_m));
-	right_motor_set_speed(-convert_cm_to_steps(default_speed_m));
+	left_motor_set_speed(convert_cm_to_steps(DEFAULT_SPEED_M));
+	right_motor_set_speed(-convert_cm_to_steps(DEFAULT_SPEED_M));
 	while(left_motor_get_pos()<convert_cm_to_steps(PERIMETER_EPUCK/4));
 	left_motor_set_speed(0) ;
 	right_motor_set_speed(0);
 	left_motor_set_pos(0);
 	right_motor_set_pos(0);
-	motor_already_ordered=0;
 }
 
 void motor_stop(void)
 {
-	motor_already_ordered=1;
 	left_motor_set_pos(0);
 	right_motor_set_pos(0);
 	left_motor_set_speed(0);
 	right_motor_set_speed(0);
-	motor_already_ordered=0;
 }
 
 
 // *** Parties des fonctiosn finales qui seront utilisées dans le projet ***
 void move_forwd_steps(int steps)
 {
-	motor_already_ordered=1;
 	left_motor_set_pos(0);
 	right_motor_set_pos(0);
-	left_motor_set_speed(convert_cm_to_steps(default_speed_m)) ;
-	right_motor_set_speed(convert_cm_to_steps(default_speed_m));
+	left_motor_set_speed(convert_cm_to_steps(DEFAULT_SPEED_M)) ;
+	right_motor_set_speed(convert_cm_to_steps(DEFAULT_SPEED_M));
 	while(left_motor_get_pos()<steps);
 	left_motor_set_speed(0) ;
 	right_motor_set_speed(0);
 	left_motor_set_pos(0);
 	right_motor_set_pos(0);
-	motor_already_ordered=0;
 
 }
 void move_forward(void)
 {
-	motor_already_ordered=1;
-	left_motor_set_speed(convert_cm_to_steps(default_speed_m));
-	right_motor_set_speed(convert_cm_to_steps(default_speed_m));
-
+	left_motor_set_speed(convert_cm_to_steps(DEFAULT_SPEED_M));
+	right_motor_set_speed(convert_cm_to_steps(DEFAULT_SPEED_M));
 }
 
 
@@ -117,43 +94,17 @@ static THD_FUNCTION(conducteur_thd,arg)
 {
 	(void)arg;
 	chRegSetThreadName(__FUNCTION__);
-	//systime_t time;
+	int32_t instruction_tab[MAX_NB_INSTRUCTION]={NO_INSTRUCTION};
+	int num_instruction=-1; //This will contain the index of the last got instruction
+	bool wayback=false;
 	while(1)
 	{
-		//time = chVTGetSystemTime();
-		//etat=get_etat_marche()+get_instruction_micro();
 		switch(etat)
 		{
-		/*
-			case 0:   // etat initial ou on va faire marcher le moteur
-				if(!motor_already_ordered)
-				{
-					move_forward();
-					//etat=1; // on passe maintenant à l'état en marche
-					set_etat_marche(1);
-
-				}
-				//chThdSleepUntilWindowed(time, time + MS2ST(1000));
-				chThdSleepMilliseconds(100);
-				break;
-			case 1:
-				//if(!motor_already_ordered)
-
-					motor_stop();
-					//etat=0;
-					set_etat_marche(0); // pour dire qu'on s'est arreté
-					//chThdSleepUntilWindowed(time, time + MS2ST(100));
-					chThdSleepMilliseconds(100);
-					break;
-
-				//else break;
-
-		*/
-		case 0: // c'est cette partie d'initialisation on attend le signal de départ
-			//si signal déclaré on passe à l'état 1
-			if(get_instruction_micro()==1)
+		case WAIT_SIGNAL_START: //Initial Situation : We need an Instruction Start to go to new state
+			if(get_instruction_micro()==START_INSTRUCTION) // a Start Signal has been Detected from the Micro
 			{
-				etat=1;
+				etat=WAIT_ROAD_CLEAR;
 				chThdSleepMilliseconds(100);
 				break;
 			}
@@ -162,89 +113,109 @@ static THD_FUNCTION(conducteur_thd,arg)
 				motor_stop();
 				chThdSleepMilliseconds(100);
 				break;
-
 			}
-
-			//instruction_left_right=2; // pour right
-			//chThdSleepMilliseconds(100);
-			//break;
-		case 1: //le signal de départ est donnée , on vérifie si on l'espace est libre
-			/*
-			if(!motor_already_ordered)
+		case WAIT_ROAD_CLEAR: //After Receiving the Signal Start, We need to verify by IR_Proximity sensor if road is
+			//clear or not before moving
+			if(get_etat_marche()==CLEAR_ROAD) // No obstacles detected we move to the state of Moving
 			{
 				move_forward();
+				set_etat_micro(MOVING);
+				etat=CONDUCTOR_MOVING;
+				chThdSleepMilliseconds(100);
+				break;
 			}
-			*/
-			if(get_etat_marche()) //l'espace est libre
+			else //Here the case that the Robot is initially put in front of an Obstacle,
+				//we move to the state"Waiting Instruction to turn"
 			{
-				if(!motor_already_ordered)
+				etat=CONDUCTOR_STOPPED;
+				set_etat_micro(STOPPED);
+				chThdSleepMilliseconds(3000);
+				break;
+			}
+		case CONDUCTOR_MOVING:// This situation represent the "Moving Situation": the only thing we
+			//need to check is if the road is still clear or not
+			if(!wayback)
+			{
+				if(get_etat_marche()==CLEAR_ROAD )
 				{
-					move_forward();
-					set_etat_micro(1);
-					etat=2;
 					chThdSleepMilliseconds(100);
 					break;
-
+				}
+				else
+				{
+					num_instruction++; //We move to the next case in Tab-Instructions
+					instruction_tab[num_instruction]=right_motor_get_pos(); // We get directly the nbr of steps just before stopping
+					motor_stop();
+					etat=CONDUCTOR_STOPPED;
+					set_etat_micro(STOPPED);
+					chThdSleepMilliseconds(3000);
+					break;
 				}
 			}
 			else
 			{
-				etat=3;
-				set_etat_micro(2);
-				delay(100000);
-				chThdSleepMilliseconds(100);
-				break;
-			}
-			//motor_stop();
-			//set_etat_micro(2);
-			//chThdSleepMilliseconds(100);
-			//break;
-		case 2: // le moteur a commencé à avancer c'est au capteur de detecter l'obstacle
-			if(get_etat_marche())
-			{
-				chThdSleepMilliseconds(100);
-				break;
-
-			}
-			else
-			{
-				motor_stop();
-				delay(100000);
-				etat=3;
-				set_etat_micro(2);
-				chThdSleepMilliseconds(100);
-				break;
-
-			}
-		case 3: //le moteur s'est arreté devant un obstacle <--> c'est au microphone de donner l'ordre
-			if(get_instruction_micro()==2)
-			{
-				if(!motor_already_ordered)
+				if(num_instruction != -1)
 				{
+					if(instruction_tab[num_instruction]==TURN_RIGHT_INSTRUCTION)
+					{
+						turn_right();
+						num_instruction--;
+						break;
+					}
+					else if(instruction_tab[num_instruction]==TURN_LEFT_INSTRUCTION)
+					{
+						turn_left();
+						num_instruction--;
+						break;
+					}
+					else
+					{
+						move_forwd_steps(instruction_tab[num_instruction]);
+						num_instruction--;
+						break;
+					}
+				}
+				else
+				{
+					motor_stop();
+					break;
+				}
+			}
+		case 3: //This situation : We are in front of an Obstacle: We wait for an
+			//instruction detected from the Micro (Left Right or Come Back)
+			if(get_instruction_micro()==TURN_LEFT_INSTRUCTION)
+			{
 					turn_left();
+					num_instruction++;
+					instruction_tab[num_instruction]=TURN_RIGHT_INSTRUCTION; // We invert the movement for the coming back
 					move_forward();
-
-					etat=2;
-					set_etat_micro(1);
+					etat=CONDUCTOR_MOVING;
+					set_etat_micro(MOVING);
 					chThdSleepMilliseconds(100);
 					break;
-
-				}
 			}
-			else if(get_instruction_micro()==3)
+			else if(get_instruction_micro()==TURN_RIGHT_INSTRUCTION)
 			{
-				if(!motor_already_ordered)
-				{
 					turn_right();
+					num_instruction++;
+					instruction_tab[num_instruction]=TURN_LEFT_INSTRUCTION; //We invert the movement for the coming back
 					move_forward();
-					etat=2;
-					set_etat_micro(1);
+					etat=CONDUCTOR_MOVING;
+					set_etat_micro(MOVING);
 					chThdSleepMilliseconds(100);
 					break;
-				}
 			}
-			chThdSleepMilliseconds(100);
-			break;
+			else if(get_instruction_micro()==COME_BACK_INSTRUCTION)
+			{
+					turn_right();
+					turn_right();
+					motor_stop();
+					etat=CONDUCTOR_MOVING;
+					set_etat_micro(MOVING);
+					wayback=true;
+					chThdSleepMilliseconds(100);
+					break;
+			}
 		}
 	}
 
@@ -252,9 +223,8 @@ static THD_FUNCTION(conducteur_thd,arg)
 
 void initialiser_conducteur(void)
 {
-	etat=0 ;
-	set_etat_marche(0);
-	set_etat_micro(0);
-	motor_already_ordered=0;
+	etat=WAIT_SIGNAL_START ;
+	set_etat_marche(OBSTACLE);
+	set_etat_micro(INITIAL);
 	chThdCreateStatic(conducteur_thd_wa,sizeof(conducteur_thd_wa),NORMALPRIO,conducteur_thd,NULL);
 }
