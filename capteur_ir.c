@@ -18,7 +18,7 @@
 // ### Threshold val_ir_stop: this value can be changed depending on the setup conditions
 static unsigned int threshold_val_ir_stop =250 ;
 // ### if etat_marche=0 --> we detected obstacle , if 1: no obstacle detected
-static unsigned int etat_marche;
+static int etat_marche;
 //*** End Parameters Declaration ***
 
 messagebus_t bus;
@@ -28,8 +28,7 @@ CONDVAR_DECL(bus_condvar);
 
 void set_etat_marche(unsigned int valeur)
 {
-	if(valeur< 2) etat_marche=valeur;
-	else etat_marche=0;
+	etat_marche=valeur;
 }
 unsigned int get_etat_marche(void)
 {
@@ -46,10 +45,10 @@ static THD_FUNCTION(capteur_ir_thd,arg)
 	{
 		switch(etat_marche)
 			{
-				case 0: // In front of an Obstacle
+				case OBSTACLE: // In front of an Obstacle
 					if((unsigned int)get_prox(0)<threshold_val_ir_stop)
 					{
-						etat_marche=1;
+						etat_marche=CLEAR_ROAD;
 						chThdSleepMilliseconds(110);
 						break;
 					}
@@ -59,10 +58,10 @@ static THD_FUNCTION(capteur_ir_thd,arg)
 						break;
 
 					}
-				case 1: // No front Obstacles detected
+				case CLEAR_ROAD: // No front Obstacles detected
 					if((unsigned int)get_prox(0)>threshold_val_ir_stop)
 					{
-						etat_marche=0;
+						etat_marche=OBSTACLE;
 						chThdSleepMilliseconds(110);
 						break;
 					}
@@ -77,7 +76,7 @@ static THD_FUNCTION(capteur_ir_thd,arg)
 
 void initialiser_capteur_ir(void)
 {
-
+	etat_marche=OBSTACLE;
 	chThdCreateStatic(capteur_ir_thd_wa,sizeof(capteur_ir_thd_wa),NORMALPRIO,capteur_ir_thd,NULL);
 }
 void initialiser_message_for_prox_ir(void)

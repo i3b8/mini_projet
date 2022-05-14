@@ -54,45 +54,25 @@ int main(void)
     halInit();
     mpu_init();
     //*** Inits Inter Process Communication bus ***
-    //messagebus_init(&bus, &bus_lock, &bus_condvar);
     initialiser_message_for_prox_ir();
     initialiser_capteur_ir();
-
-
     motors_init();
-
     initialiser_conducteur();
 
     //*** Init Peripherials ***
-
-
     proximity_start();
     mic_start(&processAudioData);
     initialiser_audio_proc();
 
-    //***End Init Peripherials***
-
-    //*** Init Other Parameters***
-    //initialiser_capteur();
     //***End Init Other Parameters***
-   // chThdSleepMilliseconds(2000);
     //***Motor configuration to move forward with speed of 6.5cm/s ***
-    //move_forward();
     //*** End Motor Configuration ***
-
+    //chThdSleepMilliseconds(4000);
     //*** IR Auto Calibration***
     calibrate_ir();
     //*** End IR Auto Calibration***
-
-    //***Checking the proximity working ***
-    //messagebus_topic_t *proximity_topic = messagebus_find_topic_blocking(&bus, "/proximity");
-    //proximity_msg_t proximity_values;
-
     while(1)
     {
-    	//wait for new measures to be published
-    	//messagebus_topic_wait(proximity_topic, &proximity_values, sizeof(proximity_values));
-    	//update_capteur(proximity_values.delta[0]);
     	chThdSleepMilliseconds(500);
 
     }
