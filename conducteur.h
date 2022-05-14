@@ -1,7 +1,13 @@
 
 #ifndef CONDUCTEUR_H_
 #define CONDUCTEUR_H_
-
+enum state_conductor
+{
+	WAIT_SIGNAL_START=0,
+	WAIT_ROAD_CLEAR=1,
+	CONDUCTOR_MOVING=2,
+	CONDUCTOR_STOPPED=3
+};
 void turn_right(void); // make a quarter turn to the right
 void turn_left(void); // make a quarter turn to the left
 void motor_stop(void); // stop the motors
