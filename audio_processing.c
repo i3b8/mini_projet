@@ -53,7 +53,10 @@ static unsigned int etat_cours ; // En fonction de l'état_en cours {initial , ma
 //vérifie si un signal sonore a été detecté
 static unsigned int instruction_to_do; // {1 : start ; 2: turn left  ; 3:Right ; 4:Come_Back }
 static uint8_t new_value_is_updated; // {we detected a new sonore signal }
-
+static uint8_t call_back_is_active_twice ; // mesure de sécurité
+static uint8_t turn_left_is_active_twice ;
+static uint8_t turn_right_is_active_twice ;
+static uint8_t start_is_active_twice ;
 /*
 *	Simple function used to detect the highest value in a buffer
 *	and to execute a motor command depending on it
@@ -74,42 +77,117 @@ void sound_remote(float* data){
 		case 0: //Initial Situation --> Wait for the Start Signal : FREQ_FORWARD
 		if(max_norm_index >= FREQ_FORWARD_L && max_norm_index <= FREQ_FORWARD_H )
 		{
-			instruction_to_do= 1;
+			//instruction_to_do= 1;
 			new_value_is_updated=1;
+			switch(start_is_active_twice)
+			{
+				case 0 :
+				start_is_active_twice=1;
+				break;
+				case 1:
+				start_is_active_twice=2;
+				break;
+				case 2:
+				start_is_active_twice=3;
+				break;
+				case 3:
+				instruction_to_do= 1;
+				start_is_active_twice=0;
+				break;
+
+			}
 			break;
 		}
 		else
 		{
+			start_is_active_twice=0;
 			instruction_to_do= 0;
 			break;
 		}
 		case 1: //Moving Situation : No signal need to be detected
 			instruction_to_do= 0;
+			start_is_active_twice=0;
+			call_back_is_active_twice=0;
+			turn_left_is_active_twice=0;
+			turn_right_is_active_twice=0;
 			break;
 		case 2: // Stop Situation : Need to detect a specific signal (Left-Right or Come_back)
 			if(max_norm_index >= FREQ_LEFT_L && max_norm_index <= FREQ_LEFT_H)
 			{
-				instruction_to_do=2;
+				//instruction_to_do=2;
 				new_value_is_updated=1;
+				switch(turn_left_is_active_twice)
+				{
+					case 0 :
+					turn_left_is_active_twice=1;
+					break;
+					case 1:
+					turn_left_is_active_twice=2;
+					break;
+					case 2:
+					turn_left_is_active_twice=3;
+					break;
+					case 3:
+					instruction_to_do= 2;
+					turn_left_is_active_twice=0;
+					break;
+				}
 				break;
 			}
 			else if(max_norm_index >= FREQ_RIGHT_L && max_norm_index <= FREQ_RIGHT_H)
 			{
-				instruction_to_do=3; //turn_right
+				//instruction_to_do=3; //turn_right
 				new_value_is_updated=1;
+				switch(turn_right_is_active_twice)
+				{
+					case 0 :
+					turn_right_is_active_twice=1;
+					break;
+					case 1:
+					turn_right_is_active_twice=2;
+					break;
+					case 2:
+					turn_right_is_active_twice=3;
+					break;
+					case 3:
+					instruction_to_do= 3;
+					turn_right_is_active_twice=0;
+					break;
+				}
 				break;
 
 			}
 
 			else if(max_norm_index >= FREQ_BACK_L && max_norm_index <= FREQ_BACK_H)
 			{
-				instruction_to_do=11;
+
+				//instruction_to_do=11;
 				new_value_is_updated=1;
+				switch(call_back_is_active_twice)
+				{
+					case 0 :
+					call_back_is_active_twice=1;
+					break;
+					case 1:
+					call_back_is_active_twice=2;
+					break;
+					case 2:
+					call_back_is_active_twice=3;
+					break;
+					case 3:
+					instruction_to_do= 11;
+					call_back_is_active_twice=0;
+					break;
+				}
 				break;
 			}
 			else
 			{
 				instruction_to_do=0;
+				call_back_is_active_twice=0;
+				turn_left_is_active_twice=0;
+				turn_right_is_active_twice=0;
+				start_is_active_twice=0;
 				break;
 			}
 	}
@@ -247,7 +325,7 @@ static THD_FUNCTION(audio_processing_thd,arg)
 			if(new_value_is_updated) // We detected the Start Signal
 			{
 				new_value_is_updated=0;
-				chThdSleepMilliseconds(100);
+				chThdSleepMilliseconds(15);
 				break;
 			}
 			else
@@ -257,13 +335,14 @@ static THD_FUNCTION(audio_processing_thd,arg)
 			}
 		case 1:  //Moving Situation <--> Nothing to do
 			instruction_to_do=0; // ******
-			chThdSleepMilliseconds(100);
+			chThdSleepMilliseconds(15);
 			break;
 		case 2: // Stop Situation --> What Instruction to to
+			//processAudioData(data,num_samples);
 			if(new_value_is_updated)
 			{
 				new_value_is_updated=0;
-				chThdSleepMilliseconds(100);
+				chThdSleepMilliseconds(15);
 				break;
 			}
 			else
@@ -288,9 +367,14 @@ void initialiser_audio_proc(void)
 {
 	instruction_to_do= 0 ;
 	new_value_is_updated=0;
+	call_back_is_active_twice=0;
+	turn_left_is_active_twice=0;
+	turn_right_is_active_twice=0;
+	start_is_active_twice=0;
 	chThdCreateStatic(audio_processing_thd_wa,sizeof(audio_processing_thd_wa),NORMALPRIO,audio_processing_thd,NULL);
 }
 void set_instruction_to_do(unsigned int instruction)
 {
 	instruction_to_do=instruction;
+
 }
