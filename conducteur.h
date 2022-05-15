@@ -1,21 +1,15 @@
-
 #ifndef CONDUCTEUR_H_
 #define CONDUCTEUR_H_
 enum state_conductor
 {
 	WAIT_SIGNAL_START=0,
-	WAIT_ROAD_CLEAR=1,
-	CONDUCTOR_MOVING=2,
-	CONDUCTOR_STOPPED=3
+	CONDUCTOR_MOVING=1,
+	CONDUCTOR_STOPPED=2,
+	CONDUCTOR_COMING_BACK=3
 };
-void turn_right(void); // make a quarter turn to the right
-void turn_left(void); // make a quarter turn to the left
-void motor_stop(void); // stop the motors
-void move_forward(void);// move forward by a default speed
-
-
-// partie des fonctions finales pour utiliser dans le projet
-void move_forwd_steps(int steps); // move forward for given steps
+/*
+ * Initialise Conductor (Thread and State of Conductor)
+ */
 void initialiser_conducteur(void);
 
 #endif /* CONDUCTEUR_H_ */

@@ -1,42 +1,26 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-
-#include "ch.h"
-#include "chprintf.h"
 #include "hal.h"
 #include "sensors/proximity.h"
-#include "memory_protection.h"
-
 #include <main.h>
-
-#include "communication.h"
 #include "capteur_ir.h"
 
-//*** Parameters Declaration ***
+
 // ### Threshold val_ir_stop: this value can be changed depending on the setup conditions
 static unsigned int threshold_val_ir_stop =250 ;
-// ### if etat_marche=0 --> we detected obstacle , if 1: no obstacle detected
+
+// ### Etat marche can be (CLEAR or OBSTACLE)
 static int etat_marche;
-//*** End Parameters Declaration ***
+
 
 messagebus_t bus;
 MUTEX_DECL(bus_lock);
 CONDVAR_DECL(bus_condvar);
 
-
-void set_etat_marche(unsigned int valeur)
-{
-	etat_marche=valeur;
-}
 unsigned int get_etat_marche(void)
 {
 	return etat_marche;
 }
 
-
-static THD_WORKING_AREA(capteur_ir_thd_wa,1024);
+static THD_WORKING_AREA(capteur_ir_thd_wa,128);
 static THD_FUNCTION(capteur_ir_thd,arg)
 {
 	(void)arg;
